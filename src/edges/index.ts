@@ -1,15 +1,22 @@
 import type { Edge, EdgeTypes } from "@xyflow/react";
 import StripedEdge from "./StripedEdge";
-import StepEdge from "./StepEdge";
+import CurvedEdge from "./CurvedEdge";
+import DoubleStripedEdge from "./DoubleStripedEdge";
 
 export const initialEdges: Edge[] = [
-  { id: "a->c", source: "a", target: "c", animated: true },
-  { id: "b->d", source: "b", target: "d" },
-  { id: "c->d", source: "c", target: "d", animated: true },
+  {
+    id: "1->2",
+    source: "1",
+    target: "2",
+    // ID
+    sourceHandle: "bottom",
+    targetHandle: "top",
+    type: "striped",
+  },
 ];
 
 export const edgeTypes = {
-  // Add your custom edge types here!
-  step: StepEdge,
+  curved: CurvedEdge,
   striped: StripedEdge,
+  "double-striped": DoubleStripedEdge,
 } satisfies EdgeTypes;

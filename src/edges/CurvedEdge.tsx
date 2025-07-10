@@ -1,21 +1,25 @@
 import { BaseEdge, getSmoothStepPath, type EdgeProps } from "@xyflow/react";
 
-export default function StepEdge({
+export default function CurvedEdge({
   id,
   sourceX,
   sourceY,
   targetX,
   targetY,
+  sourcePosition,
+  targetPosition,
   style,
   markerEnd,
 }: EdgeProps) {
-  // getSmoothStepPath вернёт [d, labelX, labelY]
+  // getSmoothStepPath вернёт SVG-путь и координаты для метки
   const [d] = getSmoothStepPath({
     sourceX,
     sourceY,
+    sourcePosition,
     targetX,
     targetY,
-    borderRadius: 0, // без скруглений, получится классическая ломаная
+    targetPosition,
+    borderRadius: 15, // Скругление углов для плавности
   });
 
   return <BaseEdge id={id} path={d} style={style} markerEnd={markerEnd} />;

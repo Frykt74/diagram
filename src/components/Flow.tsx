@@ -13,37 +13,35 @@ import "@xyflow/react/dist/style.css";
 
 import { nodeTypes, initialNodes } from "../nodes";
 import { edgeTypes, initialEdges } from "../edges";
-import type { AppNode } from "../nodes/types"; // твой тип AppNode
+import type { AppNode } from "../nodes/types";
 
-let idCounter = 3;
+let idCounter = 3; // Счетчик для ID новых узлов
 
 export default function Flow() {
-  // состояние узлов типизировано как AppNode[]
   const [nodes, setNodes, onNodesChange] = useNodesState<AppNode>(initialNodes);
   const [edges, setEdges, onEdgesChange] = useEdgesState(initialEdges);
 
-  // Для удаления связи
   const [selectedEdgeId, setSelectedEdgeId] = useState<string | null>(null);
   const [deleteButtonPos, setDeleteButtonPos] = useState<{
     x: number;
     y: number;
   } | null>(null);
 
-  // Выбранный тип нового ребра
+  // Тип связи по умолчанию
   const [newEdgeType, setNewEdgeType] =
-    useState<keyof typeof edgeTypes>("step");
+    useState<keyof typeof edgeTypes>("curved");
 
-  // Обработчик добавления узла
+  // Добавление нового узла
   const onAddNode = useCallback(() => {
     const newId = `${idCounter++}`;
     const newNode: AppNode = {
       id: newId,
-      type: "default", // обязательно указываем встроенный тип
+      type: "custom", // Используем кастомный тип
       position: {
-        x: window.innerWidth / 2 - 75,
-        y: window.innerHeight / 2 - 25,
+        x: Math.random() * (window.innerWidth / 2),
+        y: Math.random() * (window.innerHeight / 2),
       },
-      data: { label: `Node ${newId}` },
+      data: { label: `Новый блок ${newId}` },
     };
     setNodes((nds) => [...nds, newNode]);
   }, [setNodes]);
@@ -55,14 +53,14 @@ export default function Flow() {
     [newEdgeType, setEdges]
   );
 
-  // Обработчик клика по ребру (для показа кнопки удаления)
+  // Клик по связи для показа кнопки удаления
   const onEdgeClick: EdgeMouseHandler = useCallback((evt, edge) => {
     evt.stopPropagation();
     setSelectedEdgeId(edge.id);
     setDeleteButtonPos({ x: evt.clientX, y: evt.clientY });
   }, []);
 
-  // Удаление выбранного ребра
+  // Удаление выбранной связи
   const deleteEdge = useCallback(() => {
     if (!selectedEdgeId) return;
     setEdges((eds) => eds.filter((e) => e.id !== selectedEdgeId));
@@ -70,7 +68,7 @@ export default function Flow() {
     setDeleteButtonPos(null);
   }, [selectedEdgeId, setEdges]);
 
-  // Скрыть кнопку удаления при клике по пустому месту
+  // Скрытие кнопки при клике на пустое место
   const onPaneClick = useCallback(() => {
     setSelectedEdgeId(null);
     setDeleteButtonPos(null);
@@ -78,26 +76,36 @@ export default function Flow() {
 
   return (
     <div style={{ width: "100vw", height: "100vh" }}>
-      {/* Селектор типа ребра */}
-      <div style={{ position: "absolute", zIndex: 10, top: 10, left: 10 }}>
-        <label style={{ marginRight: 8 }}>Тип связи:</label>
-        <select
-          value={newEdgeType}
-          onChange={(e) =>
-            setNewEdgeType(e.target.value as keyof typeof edgeTypes)
-          }
-        >
-          {Object.keys(edgeTypes).map((t) => (
-            <option key={t} value={t}>
-              {t}
-            </option>
-          ))}
-        </select>
-      </div>
-
-      {/* Кнопка добавления узла */}
-      <div style={{ position: "absolute", zIndex: 10, top: 10, left: 180 }}>
-        <button onClick={onAddNode}>Добавить узел</button>
+      {/* UI элементы управления */}
+      <div
+        style={{
+          position: "absolute",
+          zIndex: 10,
+          top: 10,
+          left: 10,
+          background: "#f0f0f0",
+          padding: 10,
+          borderRadius: 5,
+          display: "flex",
+          gap: 15,
+        }}
+      >
+        <div>
+          <label style={{ marginRight: 8 }}>Тип связи:</label>
+          <select
+            value={newEdgeType}
+            onChange={(e) =>
+              setNewEdgeType(e.target.value as keyof typeof edgeTypes)
+            }
+          >
+            {Object.keys(edgeTypes).map((t) => (
+              <option key={t} value={t}>
+                {t}
+              </option>
+            ))}
+          </select>
+        </div>
+        <button onClick={onAddNode}>Добавить блок</button>
       </div>
 
       {/* Кнопка удаления связи */}
@@ -108,7 +116,7 @@ export default function Flow() {
             left: deleteButtonPos.x + 10,
             top: deleteButtonPos.y + 10,
             zIndex: 20,
-            background: "red",
+            background: "#ff4d4d",
             color: "white",
             border: "none",
             borderRadius: 4,
@@ -117,7 +125,7 @@ export default function Flow() {
           }}
           onClick={deleteEdge}
         >
-          Удалить соединение
+          Удалить
         </button>
       )}
 

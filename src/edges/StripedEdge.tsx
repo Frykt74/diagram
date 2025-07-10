@@ -1,4 +1,4 @@
-import { BaseEdge, getStraightPath, type EdgeProps } from "@xyflow/react";
+import { BaseEdge, getSmoothStepPath, type EdgeProps } from "@xyflow/react";
 
 export default function StripedEdge({
   id,
@@ -6,11 +6,18 @@ export default function StripedEdge({
   sourceY,
   targetX,
   targetY,
+  sourcePosition,
+  targetPosition,
 }: EdgeProps) {
-  // получаем SVG‑путь «прямой» линии
-  const [edgePath] = getStraightPath({ sourceX, sourceY, targetX, targetY });
+  const [edgePath] = getSmoothStepPath({
+    sourceX,
+    sourceY,
+    sourcePosition,
+    targetX,
+    targetY,
+    targetPosition,
+  });
 
-  // уникальный id для <pattern>, чтобы не пересекаться
   const patternId = `striped-pattern-${id}`;
 
   return (
@@ -19,38 +26,28 @@ export default function StripedEdge({
         <pattern
           id={patternId}
           patternUnits="userSpaceOnUse"
-          width={156} /* ширина одного полного блока (78+78) */
-          height={24} /* толщина линии */
+          width={40} // Увеличиваем ширину для более широких полосок
+          height={20}
+          // Убираем rotate(45) - полоски должны быть вертикальными
         >
-          {/* первая белая прямоугольник */}
-          <rect
-            x={0}
-            y={0}
-            width={78}
-            height={24}
-            fill="white"
-            stroke="black"
-          />
-          {/* вторая чёрная */}
-          <rect
-            x={78}
-            y={0}
-            width={78}
-            height={24}
-            fill="black"
-            stroke="black"
-          />
+          <rect x="0" y="0" width="20" height="20" fill="black" />
+          <rect x="20" y="0" width="20" height="20" fill="white" />
         </pattern>
       </defs>
 
-      {/* отрисовываем сам путь, используя этот шаблон */}
+      {/* Основная линия с черной рамкой */}
+      <BaseEdge
+        id={`${id}-border`}
+        path={edgePath}
+        style={{ stroke: "black", strokeWidth: 18 }}
+      />
+      {/* Линия с полосатым паттерном */}
       <BaseEdge
         id={id}
         path={edgePath}
         style={{
           stroke: `url(#${patternId})`,
-          strokeWidth: 24,
-          fill: "none",
+          strokeWidth: 16,
         }}
       />
     </>
