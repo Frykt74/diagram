@@ -1,7 +1,6 @@
-import { getSmoothStepPath, type EdgeProps } from "@xyflow/react";
+import { BaseEdge, getSmoothStepPath, type EdgeProps } from "@xyflow/react";
 
 export default function DoubleStripedEdge({
-  id,
   sourceX,
   sourceY,
   targetX,
@@ -9,78 +8,79 @@ export default function DoubleStripedEdge({
   sourcePosition,
   targetPosition,
 }: EdgeProps) {
-  const [edgePath] = getSmoothStepPath({
+  const edgeStyle = {
+    strokeWidth: 16,
+    fill: "none",
+  };
+
+  // 1. Рассчитываем полную ширину одной полосы с её рамкой (16px + 2px = 18px)
+  const totalStripeWidth = edgeStyle.strokeWidth + 2;
+
+  // 2. Смещение для каждой полосы, чтобы они касались друг друга (18px / 2 = 9px)
+  const offset = totalStripeWidth / 2;
+
+  // 3. КЛЮЧЕВОЕ ИЗМЕНЕНИЕ: Генерируем путь с острыми углами (borderRadius: 0).
+  //    Это полностью устраняет причину визуального бага на поворотах.
+  const [mainPath] = getSmoothStepPath({
     sourceX,
     sourceY,
     sourcePosition,
     targetX,
     targetY,
     targetPosition,
+    borderRadius: 0,
   });
 
-  // Создаем два разных паттерна - один смещен относительно другого
-  const pattern1Id = `double-striped-pattern-1-${id}`;
-  const pattern2Id = `double-striped-pattern-2-${id}`;
+  // 4. Вычисляем вектор для смещения. Этот метод надежен для путей с острыми углами.
+  const dx = targetX - sourceX;
+  const dy = targetY - sourceY;
+  const length = Math.hypot(dx, dy) || 1;
+  const nx = -dy / length;
+  const ny = dx / length;
+
+  const transform1 = `translate(${nx * offset}, ${ny * offset})`;
+  const transform2 = `translate(${-nx * offset}, ${-ny * offset})`;
 
   return (
-    <>
-      <defs>
-        {/* Первый паттерн - начинается с черной полоски */}
-        <pattern
-          id={pattern1Id}
-          patternUnits="userSpaceOnUse"
-          width={40}
-          height={20}
-        >
-          <rect x="0" y="0" width="20" height="20" fill="black" />
-          <rect x="20" y="0" width="20" height="20" fill="white" />
-        </pattern>
+    <g>
+      {/* Первая полоса, смещенная в одну сторону */}
+      <g transform={transform1}>
+        <BaseEdge
+          path={mainPath}
+          style={{
+            ...edgeStyle,
+            stroke: "black",
+            strokeWidth: totalStripeWidth,
+          }}
+        />
+        <BaseEdge path={mainPath} style={{ ...edgeStyle, stroke: "white" }} />
+        <BaseEdge
+          path={mainPath}
+          style={{ ...edgeStyle, stroke: "black", strokeDasharray: "100 100" }}
+        />
+      </g>
 
-        {/* Второй паттерн - смещен на одну полоску (начинается с белой) */}
-        <pattern
-          id={pattern2Id}
-          patternUnits="userSpaceOnUse"
-          width={40}
-          height={20}
-        >
-          <rect x="0" y="0" width="20" height="20" fill="white" />
-          <rect x="20" y="0" width="20" height="20" fill="black" />
-        </pattern>
-      </defs>
-
-      {/* Первая линия - черная рамка */}
-      <path
-        d={edgePath}
-        fill="none"
-        stroke="black"
-        strokeWidth={18}
-        style={{ transform: "translateY(-9px)" }}
-      />
-      {/* Первая линия - полосатый паттерн */}
-      <path
-        d={edgePath}
-        fill="none"
-        stroke={`url(#${pattern1Id})`}
-        strokeWidth={16}
-        style={{ transform: "translateY(-9px)" }}
-      />
-
-      {/* Вторая линия - черная рамка */}
-      <path
-        d={edgePath}
-        fill="none"
-        stroke="black"
-        strokeWidth={18}
-        style={{ transform: "translateY(9px)" }}
-      />
-      {/* Вторая линия - полосатый паттерн (смещенный) */}
-      <path
-        d={edgePath}
-        fill="none"
-        stroke={`url(#${pattern2Id})`}
-        strokeWidth={16}
-        style={{ transform: "translateY(9px)" }}
-      />
-    </>
+      {/* Вторая полоса, смещенная в другую сторону */}
+      <g transform={transform2}>
+        <BaseEdge
+          path={mainPath}
+          style={{
+            ...edgeStyle,
+            stroke: "black",
+            strokeWidth: totalStripeWidth,
+          }}
+        />
+        <BaseEdge path={mainPath} style={{ ...edgeStyle, stroke: "white" }} />
+        <BaseEdge
+          path={mainPath}
+          style={{
+            ...edgeStyle,
+            stroke: "black",
+            strokeDasharray: "100 100",
+            strokeDashoffset: 100,
+          }}
+        />
+      </g>
+    </g>
   );
 }

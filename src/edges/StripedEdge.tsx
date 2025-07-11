@@ -1,7 +1,6 @@
 import { BaseEdge, getSmoothStepPath, type EdgeProps } from "@xyflow/react";
 
 export default function StripedEdge({
-  id,
   sourceX,
   sourceY,
   targetX,
@@ -9,6 +8,7 @@ export default function StripedEdge({
   sourcePosition,
   targetPosition,
 }: EdgeProps) {
+  // Используем borderRadius: 0 для создания "ступенчатого" пути
   const [edgePath] = getSmoothStepPath({
     sourceX,
     sourceY,
@@ -16,40 +16,37 @@ export default function StripedEdge({
     targetX,
     targetY,
     targetPosition,
+    borderRadius: 0,
   });
 
-  const patternId = `striped-pattern-${id}`;
+  const edgeStyle = {
+    strokeWidth: 20, // Ширина полосы
+    fill: "none",
+  };
 
   return (
-    <>
-      <defs>
-        <pattern
-          id={patternId}
-          patternUnits="userSpaceOnUse"
-          width={40} // Увеличиваем ширину для более широких полосок
-          height={20}
-          // Убираем rotate(45) - полоски должны быть вертикальными
-        >
-          <rect x="0" y="0" width="20" height="20" fill="black" />
-          <rect x="20" y="0" width="20" height="20" fill="white" />
-        </pattern>
-      </defs>
-
-      {/* Основная линия с черной рамкой */}
+    <g>
+      {/* 1. Слой-рамка (черный, чуть толще) */}
       <BaseEdge
-        id={`${id}-border`}
-        path={edgePath}
-        style={{ stroke: "black", strokeWidth: 18 }}
-      />
-      {/* Линия с полосатым паттерном */}
-      <BaseEdge
-        id={id}
         path={edgePath}
         style={{
-          stroke: `url(#${patternId})`,
-          strokeWidth: 16,
+          ...edgeStyle,
+          stroke: "black",
+          strokeWidth: edgeStyle.strokeWidth + 2,
         }}
       />
-    </>
+      {/* 2. Слой-фон (белый) */}
+      <BaseEdge path={edgePath} style={{ ...edgeStyle, stroke: "white" }} />
+      {/* 3. Слой-узор (черные прямоугольники) с помощью stroke-dasharray */}
+      <BaseEdge
+        path={edgePath}
+        style={{
+          ...edgeStyle,
+          stroke: "black",
+          // 100px черного, 100px прозрачного (виден белый фон)
+          strokeDasharray: "100 100",
+        }}
+      />
+    </g>
   );
 }
