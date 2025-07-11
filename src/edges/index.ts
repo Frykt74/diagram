@@ -1,22 +1,24 @@
-import type { Edge, EdgeTypes } from "@xyflow/react";
+import type { Edge } from "@xyflow/react";
 import StripedEdge from "./StripedEdge";
 import CurvedEdge from "./CurvedEdge";
 import DoubleStripedEdge from "./DoubleStripedEdge";
+import MultiSegmentEdge from "./MultiSegmentEdge";
 
 export const initialEdges: Edge[] = [
   {
     id: "1->2",
     source: "1",
     target: "2",
-    // ID
     sourceHandle: "bottom",
     targetHandle: "top",
     type: "striped",
   },
 ];
 
+// ИСПРАВЛЕНИЕ: Убираем satisfies EdgeTypes для избежания конфликтов типов
 export const edgeTypes = {
   curved: CurvedEdge,
   striped: StripedEdge,
   "double-striped": DoubleStripedEdge,
-} satisfies EdgeTypes;
+  "multi-segment": MultiSegmentEdge,
+};
