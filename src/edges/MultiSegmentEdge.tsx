@@ -3,11 +3,11 @@ import {
   EdgeLabelRenderer,
   useReactFlow,
   type EdgeProps,
+  type Edge,
   Position,
 } from "@xyflow/react";
 import type { AppNode } from "../nodes/types";
 
-// --- ТИПЫ ДАННЫХ ---
 type MultiSegmentEdgeData = {
   nodeSequence: string[];
   startLabel?: string;
@@ -15,166 +15,211 @@ type MultiSegmentEdgeData = {
   isDashed?: boolean;
 };
 
-// --- ГЕОМЕТРИЧЕСКИЕ УТИЛИТЫ ---
+function getPositionFromHandle(handleId: string | undefined): Position {
+  switch (handleId) {
+    case "top":
+      return Position.Top;
+    case "right":
+      return Position.Right;
+    case "bottom":
+      return Position.Bottom;
+    case "left":
+      return Position.Left;
+    default:
+      return Position.Right;
+  }
+}
 
-/**
- * Определяет наиболее подходящие "виртуальные" точки подключения (хэндлы)
- * для двух блоков, основываясь на их взаимном расположении.
- */
-function getPortPositions(sourceNode: AppNode, targetNode: AppNode) {
-  const sourceWidth = sourceNode.measured?.width ?? 150;
-  const sourceHeight = sourceNode.measured?.height ?? 60;
-  const targetWidth = targetNode.measured?.width ?? 150;
-  const targetHeight = targetNode.measured?.height ?? 60;
+// Поиск основной связи между двумя нодами
+function getMainEdgeBetweenNodes(
+  edges: Edge[],
+  source: string,
+  target: string
+): Edge | undefined {
+  return edges.find(
+    (edge) =>
+      edge.source === source &&
+      edge.target === target &&
+      edge.type !== "multi-segment"
+  );
+}
 
+function getPortPositions(
+  sourceNode: AppNode,
+  targetNode: AppNode,
+  edges: Edge[]
+) {
+  const directEdge = getMainEdgeBetweenNodes(
+    edges,
+    sourceNode.id,
+    targetNode.id
+  );
+  // Исправленное приведение handle к string | undefined!
+  const sourceHandle = (directEdge?.sourceHandle ?? undefined) as
+    | string
+    | undefined;
+  const targetHandle = (directEdge?.targetHandle ?? undefined) as
+    | string
+    | undefined;
+
+  if (directEdge) {
+    return {
+      sourcePos: getPositionFromHandle(sourceHandle),
+      sourceHandle: sourceHandle ?? "right",
+      targetPos: getPositionFromHandle(targetHandle),
+      targetHandle: targetHandle ?? "left",
+    };
+  }
+
+  // Fallback геометрически
   const sourceCenter = {
-    x: sourceNode.position.x + sourceWidth / 2,
-    y: sourceNode.position.y + sourceHeight / 2,
+    x: sourceNode.position.x + (sourceNode.measured?.width ?? 150) / 2,
+    y: sourceNode.position.y + (sourceNode.measured?.height ?? 60) / 2,
   };
   const targetCenter = {
-    x: targetNode.position.x + targetWidth / 2,
-    y: targetNode.position.y + targetHeight / 2,
+    x: targetNode.position.x + (targetNode.measured?.width ?? 150) / 2,
+    y: targetNode.position.y + (targetNode.measured?.height ?? 60) / 2,
   };
-
   const dx = targetCenter.x - sourceCenter.x;
   const dy = targetCenter.y - sourceCenter.y;
 
-  let sourcePos, targetPos;
-
+  let sourceHandleStr: string, targetHandleStr: string;
   if (Math.abs(dx) > Math.abs(dy)) {
-    sourcePos = dx > 0 ? Position.Right : Position.Left;
-    targetPos = dx > 0 ? Position.Left : Position.Right;
+    sourceHandleStr = dx > 0 ? "right" : "left";
+    targetHandleStr = dx > 0 ? "left" : "right";
   } else {
-    sourcePos = dy > 0 ? Position.Bottom : Position.Top;
-    targetPos = dy > 0 ? Position.Top : Position.Bottom;
+    sourceHandleStr = dy > 0 ? "bottom" : "top";
+    targetHandleStr = dy > 0 ? "top" : "bottom";
   }
 
-  return { sourcePos, targetPos };
+  return {
+    sourcePos: getPositionFromHandle(sourceHandleStr),
+    sourceHandle: sourceHandleStr,
+    targetPos: getPositionFromHandle(targetHandleStr),
+    targetHandle: targetHandleStr,
+  };
 }
 
-/**
- * Главная функция: генерирует ортогональный (прямоугольный) SVG-путь
- * и рассчитывает точки для подписей со смещением.
- */
-function getOrthogonalPath(
-  sourceNode: AppNode,
-  targetNode: AppNode,
-  sourcePos: Position,
-  targetPos: Position
+function getMultiSegmentEdgeIndex(
+  allEdges: Edge[],
+  currentEdgeId: string,
+  nodeId: string,
+  isSource: boolean,
+  handleId: string
 ) {
-  const sourceWidth = sourceNode.measured?.width ?? 150;
-  const sourceHeight = sourceNode.measured?.height ?? 60;
-  const targetWidth = targetNode.measured?.width ?? 150;
-  const targetHeight = targetNode.measured?.height ?? 60;
-
-  const sourcePoint = {
-    x:
-      sourceNode.position.x +
-      (sourcePos === Position.Left
-        ? 0
-        : sourcePos === Position.Right
-        ? sourceWidth
-        : sourceWidth / 2),
-    y:
-      sourceNode.position.y +
-      (sourcePos === Position.Top
-        ? 0
-        : sourcePos === Position.Bottom
-        ? sourceHeight
-        : sourceHeight / 2),
-  };
-
-  const targetPoint = {
-    x:
-      targetNode.position.x +
-      (targetPos === Position.Left
-        ? 0
-        : targetPos === Position.Right
-        ? targetWidth
-        : targetWidth / 2),
-    y:
-      targetNode.position.y +
-      (targetPos === Position.Top
-        ? 0
-        : targetPos === Position.Bottom
-        ? targetHeight
-        : targetHeight / 2),
-  };
-
-  const KICK_OFF_DISTANCE = 30; // Расстояние "отъезда" от блока
-  const points = [sourcePoint];
-  let current = { ...sourcePoint };
-
-  // Логика построения пути
-  if (sourcePos === Position.Right) {
-    const midX = Math.max(
-      current.x + KICK_OFF_DISTANCE,
-      (current.x + targetPoint.x) / 2
-    );
-    points.push({ x: midX, y: current.y });
-    current = { x: midX, y: current.y };
-    if (targetPos === Position.Left) {
-      points.push({ x: current.x, y: targetPoint.y });
-    }
-  } else if (sourcePos === Position.Left) {
-    const midX = Math.min(
-      current.x - KICK_OFF_DISTANCE,
-      (current.x + targetPoint.x) / 2
-    );
-    points.push({ x: midX, y: current.y });
-    current = { x: midX, y: current.y };
-    if (targetPos === Position.Right) {
-      points.push({ x: current.x, y: targetPoint.y });
-    }
-  } else if (sourcePos === Position.Bottom) {
-    const midY = Math.max(
-      current.y + KICK_OFF_DISTANCE,
-      (current.y + targetPoint.y) / 2
-    );
-    points.push({ x: current.x, y: midY });
-    current = { x: current.x, y: midY };
-    if (targetPos === Position.Top) {
-      points.push({ x: targetPoint.x, y: current.y });
-    }
-  }
-
-  points.push(targetPoint);
-
-  // Собираем SVG-путь из точек
-  const path = points
-    .map((p, i) => (i === 0 ? `M ${p.x} ${p.y}` : `L ${p.x} ${p.y}`))
-    .join(" ");
-
-  // Рассчитываем точки для подписей со смещением
-  const LABEL_OFFSET = 20;
-  const startLabelPoint = { x: points[1].x, y: points[0].y - LABEL_OFFSET };
-  const endLabelPoint = {
-    x: points[points.length - 2].x,
-    y: points[points.length - 1].y - LABEL_OFFSET,
-  };
-
-  return { path, startLabelPoint, endLabelPoint };
+  const relevant = isSource
+    ? allEdges.filter(
+        (e) =>
+          e.type === "multi-segment" &&
+          e.source === nodeId &&
+          (e.sourceHandle ?? "right") === handleId
+      )
+    : allEdges.filter(
+        (e) =>
+          e.type === "multi-segment" &&
+          e.target === nodeId &&
+          (e.targetHandle ?? "left") === handleId
+      );
+  relevant.sort((a, b) => (a.id < b.id ? -1 : 1));
+  return relevant.findIndex((e) => e.id === currentEdgeId);
 }
 
-// --- ОСНОВНОЙ КОМПОНЕНТ ---
+function countRegularEdgesAtHandle(
+  allEdges: Edge[],
+  nodeId: string,
+  isSource: boolean,
+  handleId: string
+) {
+  return (
+    isSource
+      ? allEdges.filter(
+          (e) =>
+            e.type !== "multi-segment" &&
+            e.source === nodeId &&
+            (e.sourceHandle ?? "right") === handleId
+        )
+      : allEdges.filter(
+          (e) =>
+            e.type !== "multi-segment" &&
+            e.target === nodeId &&
+            (e.targetHandle ?? "left") === handleId
+        )
+  ).length;
+}
+
+function calcOffsetPx(idx: number, baseShift: number = 30) {
+  if (idx === -1) return 0;
+  const side = idx % 2 === 0 ? -1 : 1;
+  const pos = Math.floor(idx / 2) + 1;
+  return side * pos * baseShift;
+}
+
+function getPointWithOffset(
+  base: { x: number; y: number },
+  handle: string | undefined,
+  offset: number
+) {
+  switch (handle) {
+    case "top":
+      return { x: base.x, y: base.y - offset };
+    case "bottom":
+      return { x: base.x, y: base.y + offset };
+    case "left":
+      return { x: base.x - offset, y: base.y };
+    case "right":
+      return { x: base.x + offset, y: base.y };
+    default:
+      return base;
+  }
+}
+
+function getOrthogonalPathWithOffsets(
+  sourcePoint: { x: number; y: number },
+  sourceHandle: string,
+  sourceOffset: number,
+  targetPoint: { x: number; y: number },
+  targetHandle: string,
+  targetOffset: number
+) {
+  const src = getPointWithOffset(sourcePoint, sourceHandle, sourceOffset);
+  const tgt = getPointWithOffset(targetPoint, targetHandle, targetOffset);
+
+  const isHorizontal =
+    sourceHandle === "left" ||
+    sourceHandle === "right" ||
+    targetHandle === "left" ||
+    targetHandle === "right";
+  const between = isHorizontal
+    ? { x: (src.x + tgt.x) / 2, y: src.y }
+    : { x: src.x, y: (src.y + tgt.y) / 2 };
+  const endBetween = isHorizontal
+    ? { x: (src.x + tgt.x) / 2, y: tgt.y }
+    : { x: tgt.x, y: (src.y + tgt.y) / 2 };
+
+  const pts = [src, between, endBetween, tgt];
+
+  const path = `M ${pts[0].x} ${pts[0].y} L ${pts[1].x} ${pts[1].y} L ${pts[2].x} ${pts[2].y} L ${pts[3].x} ${pts[3].y}`;
+
+  return {
+    path,
+    startLabelPoint: pts[1],
+    endLabelPoint: pts[2],
+  };
+}
+
 export default function MultiSegmentEdge(props: EdgeProps) {
   const { id, data, style, markerEnd } = props;
-  const { getNodes } = useReactFlow();
+  const { getNodes, getEdges } = useReactFlow();
   const allNodes = getNodes();
+  const allEdges = getEdges();
 
   const edgeData = data as MultiSegmentEdgeData | undefined;
-
-  if (!edgeData?.nodeSequence || edgeData.nodeSequence.length < 2) {
-    return null;
-  }
+  if (!edgeData?.nodeSequence || edgeData.nodeSequence.length < 2) return null;
 
   const sequenceNodes = edgeData.nodeSequence
     .map((nodeId) => allNodes.find((node) => node.id === nodeId))
     .filter((node): node is AppNode => Boolean(node));
-
-  if (sequenceNodes.length < 2) {
-    return null;
-  }
+  if (sequenceNodes.length < 2) return null;
 
   const segments = [];
   const labels = [];
@@ -182,19 +227,92 @@ export default function MultiSegmentEdge(props: EdgeProps) {
   for (let i = 0; i < sequenceNodes.length - 1; i++) {
     const sourceNode = sequenceNodes[i];
     const targetNode = sequenceNodes[i + 1];
-
     if (!sourceNode || !targetNode) continue;
 
-    // КЛЮЧЕВОЕ ИСПРАВЛЕНИЕ:
-    // 1. Определяем лучшие "виртуальные" хэндлы для соединения.
-    const { sourcePos, targetPos } = getPortPositions(sourceNode, targetNode);
-    // 2. Генерируем ортогональный путь и точки для подписей.
-    const { path, startLabelPoint, endLabelPoint } = getOrthogonalPath(
+    const { sourceHandle, targetHandle } = getPortPositions(
       sourceNode,
       targetNode,
-      sourcePos,
-      targetPos
+      allEdges
     );
+
+    const sourceIdx = getMultiSegmentEdgeIndex(
+      allEdges,
+      id,
+      sourceNode.id,
+      true,
+      sourceHandle
+    );
+    const targetIdx = getMultiSegmentEdgeIndex(
+      allEdges,
+      id,
+      targetNode.id,
+      false,
+      targetHandle
+    );
+
+    const sourceRegularEdges = countRegularEdgesAtHandle(
+      allEdges,
+      sourceNode.id,
+      true,
+      sourceHandle
+    );
+    const targetRegularEdges = countRegularEdgesAtHandle(
+      allEdges,
+      targetNode.id,
+      false,
+      targetHandle
+    );
+
+    const sourceOffset = calcOffsetPx(sourceIdx, sourceRegularEdges);
+    const targetOffset = calcOffsetPx(targetIdx, targetRegularEdges);
+
+    const sourceW = sourceNode.measured?.width ?? 150;
+    const sourceH = sourceNode.measured?.height ?? 60;
+    const targetW = targetNode.measured?.width ?? 150;
+    const targetH = targetNode.measured?.height ?? 60;
+
+    const sourceBase = {
+      x:
+        sourceNode.position.x +
+        (sourceHandle === "left"
+          ? 0
+          : sourceHandle === "right"
+          ? sourceW
+          : sourceW / 2),
+      y:
+        sourceNode.position.y +
+        (sourceHandle === "top"
+          ? 0
+          : sourceHandle === "bottom"
+          ? sourceH
+          : sourceH / 2),
+    };
+    const targetBase = {
+      x:
+        targetNode.position.x +
+        (targetHandle === "left"
+          ? 0
+          : targetHandle === "right"
+          ? targetW
+          : targetW / 2),
+      y:
+        targetNode.position.y +
+        (targetHandle === "top"
+          ? 0
+          : targetHandle === "bottom"
+          ? targetH
+          : targetH / 2),
+    };
+
+    const { path, startLabelPoint, endLabelPoint } =
+      getOrthogonalPathWithOffsets(
+        sourceBase,
+        sourceHandle,
+        sourceOffset,
+        targetBase,
+        targetHandle,
+        targetOffset
+      );
 
     segments.push(path);
 
@@ -205,7 +323,6 @@ export default function MultiSegmentEdge(props: EdgeProps) {
         type: "start",
       });
     }
-
     if (i === sequenceNodes.length - 2 && edgeData.endLabel) {
       labels.push({ text: edgeData.endLabel, ...endLabelPoint, type: "end" });
     }
@@ -220,7 +337,7 @@ export default function MultiSegmentEdge(props: EdgeProps) {
   };
 
   return (
-    <g style={{ zIndex: 1000 }}>
+    <g>
       {segments.map((path, index) => (
         <BaseEdge
           key={`${id}-segment-${index}`}
@@ -244,6 +361,7 @@ export default function MultiSegmentEdge(props: EdgeProps) {
               fontWeight: "600",
               color: label.type === "start" ? "#0066cc" : "#cc6600",
               pointerEvents: "none",
+              // Убедимся, что у подписей высокий zIndex, чтобы они были поверх линии
               zIndex: 2000,
               boxShadow: "0 2px 6px rgba(0,0,0,0.15)",
             }}

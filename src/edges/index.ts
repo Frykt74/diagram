@@ -15,7 +15,6 @@ export const initialEdges: Edge[] = [
   },
 ];
 
-// ИСПРАВЛЕНИЕ: Убираем satisfies EdgeTypes для избежания конфликтов типов
 export const edgeTypes = {
   curved: CurvedEdge,
   striped: StripedEdge,

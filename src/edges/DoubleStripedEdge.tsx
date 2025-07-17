@@ -19,8 +19,7 @@ export default function DoubleStripedEdge({
   // 2. Смещение для каждой полосы, чтобы они касались друг друга (18px / 2 = 9px)
   const offset = totalStripeWidth / 2;
 
-  // 3. КЛЮЧЕВОЕ ИЗМЕНЕНИЕ: Генерируем путь с острыми углами (borderRadius: 0).
-  //    Это полностью устраняет причину визуального бага на поворотах.
+  // 3. Генерируем путь с острыми углами (borderRadius: 0)
   const [mainPath] = getSmoothStepPath({
     sourceX,
     sourceY,
@@ -31,7 +30,7 @@ export default function DoubleStripedEdge({
     borderRadius: 0,
   });
 
-  // 4. Вычисляем вектор для смещения. Этот метод надежен для путей с острыми углами.
+  // 4. Вычисляем вектор для смещения
   const dx = targetX - sourceX;
   const dy = targetY - sourceY;
   const length = Math.hypot(dx, dy) || 1;

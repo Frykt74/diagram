@@ -93,7 +93,7 @@ export default function Flow() {
       source: selectedNodesForArrow[0],
       target: selectedNodesForArrow[selectedNodesForArrow.length - 1],
       type: "multi-segment",
-      // ИСПРАВЛЕНИЕ: Правильное использование markerEnd
+      zIndex: 1000, // zIndex на верхнем уровне для управления слоями
       markerEnd: {
         type: MarkerType.ArrowClosed,
         color: "#555",
@@ -103,9 +103,6 @@ export default function Flow() {
         startLabel: arrowStartLabel || undefined,
         endLabel: arrowEndLabel || undefined,
         isDashed: isArrowDashed,
-      },
-      style: {
-        zIndex: 1000,
       },
     };
 
@@ -349,6 +346,7 @@ export default function Flow() {
         nodeTypes={nodeTypes}
         edgeTypes={edgeTypes}
         fitView
+        elevateNodesOnSelect={false} // Отключаем "поднятие" узлов
       >
         <Background />
         <Controls />

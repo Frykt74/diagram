@@ -1,6 +1,5 @@
 import type { Edge } from "@xyflow/react";
 
-// Тип данных для многосегментной стрелки
 export type MultiSegmentEdgeData = {
   nodeSequence: string[];
   startLabel?: string;
@@ -8,5 +7,4 @@ export type MultiSegmentEdgeData = {
   isDashed?: boolean;
 };
 
-// Тип многосегментной связи
 export type MultiSegmentEdge = Edge<MultiSegmentEdgeData>;
