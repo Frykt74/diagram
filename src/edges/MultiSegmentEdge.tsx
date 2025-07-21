@@ -15,6 +15,8 @@ type MultiSegmentEdgeData = {
   isDashed?: boolean;
 };
 
+// --- Вспомогательные функции ---
+
 function getPositionFromHandle(handleId: string | undefined): Position {
   switch (handleId) {
     case "top":
@@ -30,7 +32,6 @@ function getPositionFromHandle(handleId: string | undefined): Position {
   }
 }
 
-// Поиск основной связи между двумя нодами
 function getMainEdgeBetweenNodes(
   edges: Edge[],
   source: string,
@@ -54,7 +55,6 @@ function getPortPositions(
     sourceNode.id,
     targetNode.id
   );
-  // Исправленное приведение handle к string | undefined!
   const sourceHandle = (directEdge?.sourceHandle ?? undefined) as
     | string
     | undefined;
@@ -71,7 +71,6 @@ function getPortPositions(
     };
   }
 
-  // Fallback геометрически
   const sourceCenter = {
     x: sourceNode.position.x + (sourceNode.measured?.width ?? 150) / 2,
     y: sourceNode.position.y + (sourceNode.measured?.height ?? 60) / 2,
@@ -100,56 +99,42 @@ function getPortPositions(
   };
 }
 
-function getMultiSegmentEdgeIndex(
+function getSegmentIndex(
   allEdges: Edge[],
   currentEdgeId: string,
-  nodeId: string,
-  isSource: boolean,
-  handleId: string
-) {
-  const relevant = isSource
-    ? allEdges.filter(
-        (e) =>
-          e.type === "multi-segment" &&
-          e.source === nodeId &&
-          (e.sourceHandle ?? "right") === handleId
-      )
-    : allEdges.filter(
-        (e) =>
-          e.type === "multi-segment" &&
-          e.target === nodeId &&
-          (e.targetHandle ?? "left") === handleId
-      );
-  relevant.sort((a, b) => (a.id < b.id ? -1 : 1));
-  return relevant.findIndex((e) => e.id === currentEdgeId);
-}
+  sourceNodeId: string,
+  targetNodeId: string
+): number {
+  const competingEdges = allEdges.filter((edge) => {
+    // Проверяем, что это многосегментная связь
+    if (edge.type !== "multi-segment") {
+      return false;
+    }
 
-function countRegularEdgesAtHandle(
-  allEdges: Edge[],
-  nodeId: string,
-  isSource: boolean,
-  handleId: string
-) {
-  return (
-    isSource
-      ? allEdges.filter(
-          (e) =>
-            e.type !== "multi-segment" &&
-            e.source === nodeId &&
-            (e.sourceHandle ?? "right") === handleId
-        )
-      : allEdges.filter(
-          (e) =>
-            e.type !== "multi-segment" &&
-            e.target === nodeId &&
-            (e.targetHandle ?? "left") === handleId
-        )
-  ).length;
+    const edgeData = edge.data as MultiSegmentEdgeData | undefined; // Проверяем наличие и тип nodeSequence
+
+    if (!edgeData?.nodeSequence || !Array.isArray(edgeData.nodeSequence)) {
+      return false;
+    }
+
+    const seq = edgeData.nodeSequence; // Ищем прямое вхождение сегмента в последовательность узлов
+
+    for (let i = 0; i < seq.length - 1; i++) {
+      if (seq[i] === sourceNodeId && seq[i + 1] === targetNodeId) {
+        return true;
+      }
+    }
+    return false;
+  }); // Сортируем для стабильного порядка
+
+  competingEdges.sort((a, b) => a.id.localeCompare(b.id));
+
+  return competingEdges.findIndex((edge) => edge.id === currentEdgeId);
 }
 
 function calcOffsetPx(idx: number, baseShift: number = 30) {
   if (idx === -1) return 0;
-  const side = idx % 2 === 0 ? -1 : 1;
+  const side = idx % 2 === 0 ? 1 : -1;
   const pos = Math.floor(idx / 2) + 1;
   return side * pos * baseShift;
 }
@@ -161,13 +146,11 @@ function getPointWithOffset(
 ) {
   switch (handle) {
     case "top":
-      return { x: base.x, y: base.y - offset };
     case "bottom":
-      return { x: base.x, y: base.y + offset };
-    case "left":
-      return { x: base.x - offset, y: base.y };
-    case "right":
       return { x: base.x + offset, y: base.y };
+    case "left":
+    case "right":
+      return { x: base.x, y: base.y + offset };
     default:
       return base;
   }
@@ -184,28 +167,34 @@ function getOrthogonalPathWithOffsets(
   const src = getPointWithOffset(sourcePoint, sourceHandle, sourceOffset);
   const tgt = getPointWithOffset(targetPoint, targetHandle, targetOffset);
 
-  const isHorizontal =
-    sourceHandle === "left" ||
-    sourceHandle === "right" ||
-    targetHandle === "left" ||
-    targetHandle === "right";
-  const between = isHorizontal
-    ? { x: (src.x + tgt.x) / 2, y: src.y }
-    : { x: src.x, y: (src.y + tgt.y) / 2 };
-  const endBetween = isHorizontal
-    ? { x: (src.x + tgt.x) / 2, y: tgt.y }
-    : { x: tgt.x, y: (src.y + tgt.y) / 2 };
+  const isHorizontal = sourceHandle === "left" || sourceHandle === "right"; // Добавляем отступ для перпендикулярной части путем сдвига средней точки // Используем sourceOffset как основу для сдвига (поскольку sourceOffset === targetOffset)
 
-  const pts = [src, between, endBetween, tgt];
+  const offset = sourceOffset;
 
-  const path = `M ${pts[0].x} ${pts[0].y} L ${pts[1].x} ${pts[1].y} L ${pts[2].x} ${pts[2].y} L ${pts[3].x} ${pts[3].y}`;
+  const midX = (src.x + tgt.x) / 2 + (isHorizontal ? offset : 0);
+  const midY = (src.y + tgt.y) / 2 + (!isHorizontal ? offset : 0);
+
+  let path = "";
+  if (isHorizontal) {
+    path = `M ${src.x} ${src.y} L ${midX} ${src.y} L ${midX} ${tgt.y} L ${tgt.x} ${tgt.y}`;
+  } else {
+    path = `M ${src.x} ${src.y} L ${src.x} ${midY} L ${tgt.x} ${midY} L ${tgt.x} ${tgt.y}`;
+  }
+
+  const pathPoints = path
+    .split(" ")
+    .slice(1)
+    .filter((p) => p !== "M" && p !== "L")
+    .map((p) => parseFloat(p));
 
   return {
     path,
-    startLabelPoint: pts[1],
-    endLabelPoint: pts[2],
+    startLabelPoint: { x: pathPoints[2], y: pathPoints[3] },
+    endLabelPoint: { x: pathPoints[4], y: pathPoints[5] },
   };
 }
+
+// --- Основной компонент ---
 
 export default function MultiSegmentEdge(props: EdgeProps) {
   const { id, data, style, markerEnd } = props;
@@ -235,36 +224,13 @@ export default function MultiSegmentEdge(props: EdgeProps) {
       allEdges
     );
 
-    const sourceIdx = getMultiSegmentEdgeIndex(
+    const segmentIdx = getSegmentIndex(
       allEdges,
       id,
       sourceNode.id,
-      true,
-      sourceHandle
+      targetNode.id
     );
-    const targetIdx = getMultiSegmentEdgeIndex(
-      allEdges,
-      id,
-      targetNode.id,
-      false,
-      targetHandle
-    );
-
-    const sourceRegularEdges = countRegularEdgesAtHandle(
-      allEdges,
-      sourceNode.id,
-      true,
-      sourceHandle
-    );
-    const targetRegularEdges = countRegularEdgesAtHandle(
-      allEdges,
-      targetNode.id,
-      false,
-      targetHandle
-    );
-
-    const sourceOffset = calcOffsetPx(sourceIdx, sourceRegularEdges);
-    const targetOffset = calcOffsetPx(targetIdx, targetRegularEdges);
+    const offset = calcOffsetPx(segmentIdx);
 
     const sourceW = sourceNode.measured?.width ?? 150;
     const sourceH = sourceNode.measured?.height ?? 60;
@@ -308,10 +274,10 @@ export default function MultiSegmentEdge(props: EdgeProps) {
       getOrthogonalPathWithOffsets(
         sourceBase,
         sourceHandle,
-        sourceOffset,
+        offset,
         targetBase,
         targetHandle,
-        targetOffset
+        offset
       );
 
     segments.push(path);
@@ -337,7 +303,7 @@ export default function MultiSegmentEdge(props: EdgeProps) {
   };
 
   return (
-    <g>
+    <g style={{ zIndex: 1000 }}>
       {segments.map((path, index) => (
         <BaseEdge
           key={`${id}-segment-${index}`}
@@ -361,7 +327,6 @@ export default function MultiSegmentEdge(props: EdgeProps) {
               fontWeight: "600",
               color: label.type === "start" ? "#0066cc" : "#cc6600",
               pointerEvents: "none",
-              // Убедимся, что у подписей высокий zIndex, чтобы они были поверх линии
               zIndex: 2000,
               boxShadow: "0 2px 6px rgba(0,0,0,0.15)",
             }}

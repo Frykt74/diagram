@@ -93,7 +93,7 @@ export default function Flow() {
       source: selectedNodesForArrow[0],
       target: selectedNodesForArrow[selectedNodesForArrow.length - 1],
       type: "multi-segment",
-      zIndex: 1000, // zIndex на верхнем уровне для управления слоями
+      zIndex: 1000,
       markerEnd: {
         type: MarkerType.ArrowClosed,
         color: "#555",
@@ -346,7 +346,7 @@ export default function Flow() {
         nodeTypes={nodeTypes}
         edgeTypes={edgeTypes}
         fitView
-        elevateNodesOnSelect={false} // Отключаем "поднятие" узлов
+        elevateNodesOnSelect={false}
       >
         <Background />
         <Controls />

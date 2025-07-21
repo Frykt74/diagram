@@ -14,22 +14,37 @@
   box-sizing: border-box;
 }
 
-/* Стили для поля ввода внутри блока */
+/* Стили для поля ввода внутри блока - обновлено для textarea */
 .custom-node-input {
   width: 100%;
-  border: none;
-  background-color: #f0f0f0;
+  border: none !important;
+  background-color: #f0f0f0 !important;
   padding: 8px;
   text-align: center;
   border-radius: 5px;
   box-sizing: border-box;
   font-size: 14px;
+  outline: none !important;
+  resize: none !important;
+  overflow: hidden !important;
+  line-height: 1.2;
+  font-family: inherit;
+  margin: 0;
+  /* Убираем стандартные стили textarea */
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  appearance: none;
 }
 
 .custom-node-input:focus {
-  outline: none;
-  border: 1px solid #777;
-  background-color: #fff;
+  outline: none !important;
+  border: 1px solid #777 !important;
+  background-color: #fff !important;
+}
+
+.custom-node-input::placeholder {
+  color: #999;
+  text-align: center;
 }
 
 /* Стили для отладочной информации */
@@ -94,20 +109,6 @@
 
 /* Обеспечиваем правильный z-index для стрелок */
 .react-flow__edges {
-  z-index: 1000;
-}
-
-.react-flow__nodes {
-  z-index: 500;
-}
-
-/* Стили для маркеров стрелок */
-.react-flow__arrowhead {
-  fill: #555 !important;
-}
-
-/* Обеспечиваем правильный z-index для стрелок */
-.react-flow__edges {
   z-index: 1500; /* Увеличиваем с 1000 до 1500 */
 }
 
@@ -138,4 +139,44 @@ svg .react-flow__edge.multi-segment {
 
 .react-flow__selection {
   z-index: 1700;
+}
+
+/* Дополнительные стили для плавного изменения размера блока */
+.custom-node:hover {
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
+}
+
+/* Убираем стандартные стили браузера для textarea в Safari */
+.custom-node-input::-webkit-input-placeholder {
+  text-align: center;
+}
+
+.custom-node-input::-moz-placeholder {
+  text-align: center;
+}
+
+.custom-node-input:-ms-input-placeholder {
+  text-align: center;
+}
+
+.custom-node-input:-moz-placeholder {
+  text-align: center;
+}
+
+/* Стили для обеспечения корректной работы в разных браузерах */
+.custom-node-input {
+  /* Фиксируем проблемы с высотой в Firefox */
+  min-height: 20px;
+  /* Убираем скроллбары */
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.custom-node-input::-webkit-scrollbar {
+  display: none;
+}
+
+/* Стили для сглаживания анимации изменения размера */
+.custom-node * {
+  transition: width 0.2s ease, height 0.2s ease;
 }

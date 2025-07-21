@@ -19,7 +19,7 @@ export default function CurvedEdge({
     targetX,
     targetY,
     targetPosition,
-    borderRadius: 15, // Скругление углов для плавности
+    borderRadius: 15,
   });
 
   return <BaseEdge id={id} path={d} style={style} markerEnd={markerEnd} />;
