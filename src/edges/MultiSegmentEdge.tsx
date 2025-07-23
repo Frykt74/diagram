@@ -13,6 +13,7 @@ type MultiSegmentEdgeData = {
   startLabel?: string;
   endLabel?: string;
   isDashed?: boolean;
+  color?: string; // Поддержка пользовательского цвета
 };
 
 // --- Вспомогательные функции ---
@@ -99,7 +100,7 @@ function getPortPositions(
   };
 }
 
-// ИСПРАВЛЕННАЯ ФУНКЦИЯ: Общий счетчик для связей в обоих направлениях
+// Общий счетчик для связей в обоих направлениях
 function getSegmentIndex(
   allEdges: Edge[],
   currentEdgeId: string,
@@ -120,9 +121,7 @@ function getSegmentIndex(
 
     const seq = edgeData.nodeSequence;
 
-    // Ищем сегмент в ЛЮБОМ направлении между этими двумя узлами
     for (let i = 0; i < seq.length - 1; i++) {
-      // Проверяем как прямое направление (A->B), так и обратное (B->A)
       if (
         (seq[i] === sourceNodeId && seq[i + 1] === targetNodeId) ||
         (seq[i] === targetNodeId && seq[i + 1] === sourceNodeId)
@@ -139,7 +138,7 @@ function getSegmentIndex(
   return competingEdges.findIndex((edge) => edge.id === currentEdgeId);
 }
 
-// Логика отступов остается БЕЗ ИЗМЕНЕНИЙ
+// Логика отступов
 function calcOffsetPx(idx: number, baseShift: number = 30) {
   if (idx === -1) return 0;
   const side = idx % 2 === 0 ? 1 : -1;
@@ -176,29 +175,106 @@ function getOrthogonalPathWithOffsets(
   const tgt = getPointWithOffset(targetPoint, targetHandle, targetOffset);
 
   const isHorizontal = sourceHandle === "left" || sourceHandle === "right";
-
   const offset = sourceOffset;
+  const cornerRadius = 10; // Радиус закругления углов
 
   const midX = (src.x + tgt.x) / 2 + (isHorizontal ? offset : 0);
   const midY = (src.y + tgt.y) / 2 + (!isHorizontal ? offset : 0);
 
   let path = "";
-  if (isHorizontal) {
-    path = `M ${src.x} ${src.y} L ${midX} ${src.y} L ${midX} ${tgt.y} L ${tgt.x} ${tgt.y}`;
-  } else {
-    path = `M ${src.x} ${src.y} L ${src.x} ${midY} L ${tgt.x} ${midY} L ${tgt.x} ${tgt.y}`;
-  }
+  let startLabelPoint: { x: number; y: number };
+  let endLabelPoint: { x: number; y: number };
 
-  const pathPoints = path
-    .split(" ")
-    .slice(1)
-    .filter((p) => p !== "M" && p !== "L")
-    .map((p) => parseFloat(p));
+  if (isHorizontal) {
+    // Горизонтальное направление
+    const corner1X = midX;
+    const corner1Y = src.y;
+    const corner2X = midX;
+    const corner2Y = tgt.y;
+
+    // Определяем направления для закругления
+    const dx1 = corner1X - src.x;
+    const dy1 = corner2Y - corner1Y;
+    const dx2 = tgt.x - corner2X;
+
+    // Рассчитываем точки для закругленных углов
+    const r = Math.min(
+      cornerRadius,
+      Math.abs(dx1) / 2,
+      Math.abs(dy1) / 2,
+      Math.abs(dx2) / 2
+    );
+
+    const p1x = src.x;
+    const p1y = src.y;
+
+    const p2x = corner1X - Math.sign(dx1) * r;
+    const p2y = corner1Y;
+
+    const p3x = corner1X;
+    const p3y = corner1Y + Math.sign(dy1) * r;
+
+    const p4x = corner2X;
+    const p4y = corner2Y - Math.sign(dy1) * r;
+
+    const p5x = corner2X + Math.sign(dx2) * r;
+    const p5y = corner2Y;
+
+    const p6x = tgt.x;
+    const p6y = tgt.y;
+
+    path = `M ${p1x} ${p1y} L ${p2x} ${p2y} Q ${corner1X} ${corner1Y} ${p3x} ${p3y} L ${p4x} ${p4y} Q ${corner2X} ${corner2Y} ${p5x} ${p5y} L ${p6x} ${p6y}`;
+
+    startLabelPoint = { x: (p2x + p3x) / 2, y: (p2y + p3y) / 2 };
+    endLabelPoint = { x: (p4x + p5x) / 2, y: (p4y + p5y) / 2 };
+  } else {
+    // Вертикальное направление
+    const corner1X = src.x;
+    const corner1Y = midY;
+    const corner2X = tgt.x;
+    const corner2Y = midY;
+
+    // Определяем направления для закругления
+    const dy1 = corner1Y - src.y;
+    const dx1 = corner2X - corner1X;
+    const dy2 = tgt.y - corner2Y;
+
+    // Рассчитываем точки для закругленных углов
+    const r = Math.min(
+      cornerRadius,
+      Math.abs(dy1) / 2,
+      Math.abs(dx1) / 2,
+      Math.abs(dy2) / 2
+    );
+
+    const p1x = src.x;
+    const p1y = src.y;
+
+    const p2x = corner1X;
+    const p2y = corner1Y - Math.sign(dy1) * r;
+
+    const p3x = corner1X + Math.sign(dx1) * r;
+    const p3y = corner1Y;
+
+    const p4x = corner2X - Math.sign(dx1) * r;
+    const p4y = corner2Y;
+
+    const p5x = corner2X;
+    const p5y = corner2Y + Math.sign(dy2) * r;
+
+    const p6x = tgt.x;
+    const p6y = tgt.y;
+
+    path = `M ${p1x} ${p1y} L ${p2x} ${p2y} Q ${corner1X} ${corner1Y} ${p3x} ${p3y} L ${p4x} ${p4y} Q ${corner2X} ${corner2Y} ${p5x} ${p5y} L ${p6x} ${p6y}`;
+
+    startLabelPoint = { x: (p2x + p3x) / 2, y: (p2y + p3y) / 2 };
+    endLabelPoint = { x: (p4x + p5x) / 2, y: (p4y + p5y) / 2 };
+  }
 
   return {
     path,
-    startLabelPoint: { x: pathPoints[2], y: pathPoints[3] },
-    endLabelPoint: { x: pathPoints[4], y: pathPoints[5] },
+    startLabelPoint,
+    endLabelPoint,
   };
 }
 
@@ -302,8 +378,10 @@ export default function MultiSegmentEdge(props: EdgeProps) {
     }
   }
 
+  // Применяем пользовательский цвет
+  const edgeColor = edgeData.color || "#555";
   const edgeStyle = {
-    stroke: "#555",
+    stroke: edgeColor,
     strokeWidth: 3,
     fill: "none",
     strokeDasharray: edgeData.isDashed ? "10 5" : "none",

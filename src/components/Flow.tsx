@@ -21,8 +21,23 @@ import { DiagramAPI } from "../services/DiagramAPI";
 import type { DiagramModel, FlowData } from "../types/api";
 
 let idCounter = 3;
-
 const AUTOSAVE_KEY = "react-flow-autosave";
+
+// Предустановленные цвета
+const COLOR_PALETTE = [
+  "#7D8A9C", // Мягкий серо-синий (по умолчанию)
+  "#E57373", // Пастельный красный
+  "#81C784", // Нежный зеленый
+  "#64B5F6", // Светло-синий
+  "#FFF176", // Пастельный желтый
+  "#F06292", // Мягкий розовый
+  "#4DD0E1", // Бирюзовый
+  "#FFB74D", // Пастельный оранжевый
+  "#BA68C8", // Лавандовый
+  "#A1887F", // Теплый коричневый
+  "#90A4AE", // Холодный серый
+  "#455A64", // Темно-серый
+];
 
 export default function Flow() {
   const [nodes, setNodes, onNodesChange] = useNodesState<AppNode>(initialNodes);
@@ -54,6 +69,11 @@ export default function Flow() {
   const [currentDiagramId, setCurrentDiagramId] = useState<number | null>(null);
   const [diagramName, setDiagramName] = useState("Новая диаграмма");
   const [isLoading, setIsLoading] = useState(false);
+
+  // Состояния для работы с цветами
+  const [selectedNodeColor, setSelectedNodeColor] = useState("#555555");
+  const [selectedEdgeColor, setSelectedEdgeColor] = useState("#555555");
+  const [selectedNodeIds, setSelectedNodeIds] = useState<string[]>([]);
 
   // Автосохранение в localStorage при изменениях
   useEffect(() => {
@@ -234,10 +254,34 @@ export default function Flow() {
         x: Math.random() * (window.innerWidth / 2),
         y: Math.random() * (window.innerHeight / 2),
       },
-      data: { label: `Новый блок ${newId}` },
+      data: {
+        label: `Новый блок ${newId}`,
+        borderColor: selectedNodeColor,
+      },
     };
     setNodes((nds) => [...nds, newNode]);
-  }, [setNodes]);
+  }, [setNodes, selectedNodeColor]);
+
+  const applyNodeColor = useCallback(() => {
+    if (selectedNodeIds.length === 0) {
+      alert("Выберите узлы для изменения цвета");
+      return;
+    }
+
+    setNodes((nodes) =>
+      nodes.map((node) => {
+        if (selectedNodeIds.includes(node.id) && node.type === "custom") {
+          return {
+            ...node,
+            data: { ...node.data, borderColor: selectedNodeColor },
+          } as AppNode;
+        }
+        return node;
+      })
+    );
+
+    setSelectedNodeIds([]);
+  }, [selectedNodeIds, selectedNodeColor, setNodes]);
 
   // Обработчик соединения узлов
   const onConnect: OnConnect = useCallback(
@@ -249,17 +293,28 @@ export default function Flow() {
   // Обработчик клика по узлу для создания многосегментной стрелки
   const onNodeClick = useCallback(
     (event: React.MouseEvent, node: AppNode) => {
-      if (!isCreatingMultiSegment) return;
-
-      event.stopPropagation();
-
-      setSelectedNodesForArrow((prev) => {
-        if (prev.includes(node.id)) {
-          return prev.filter((id) => id !== node.id);
-        } else {
-          return [...prev, node.id];
+      if (isCreatingMultiSegment) {
+        event.stopPropagation();
+        setSelectedNodesForArrow((prev) => {
+          if (prev.includes(node.id)) {
+            return prev.filter((id) => id !== node.id);
+          } else {
+            return [...prev, node.id];
+          }
+        });
+      } else {
+        // Обычный режим - выбор узлов для изменения цвета
+        if (node.type === "custom") {
+          event.stopPropagation();
+          setSelectedNodeIds((prev) => {
+            if (prev.includes(node.id)) {
+              return prev.filter((id) => id !== node.id);
+            } else {
+              return [...prev, node.id];
+            }
+          });
         }
-      });
+      }
     },
     [isCreatingMultiSegment]
   );
@@ -279,13 +334,14 @@ export default function Flow() {
       zIndex: 1000,
       markerEnd: {
         type: MarkerType.ArrowClosed,
-        color: "#555",
+        color: selectedEdgeColor,
       },
       data: {
         nodeSequence: selectedNodesForArrow,
         startLabel: arrowStartLabel || undefined,
         endLabel: arrowEndLabel || undefined,
         isDashed: isArrowDashed,
+        color: selectedEdgeColor,
       },
     };
 
@@ -302,6 +358,7 @@ export default function Flow() {
     arrowStartLabel,
     arrowEndLabel,
     isArrowDashed,
+    selectedEdgeColor,
     setEdges,
   ]);
 
@@ -333,10 +390,53 @@ export default function Flow() {
   const onPaneClick = useCallback(() => {
     setSelectedEdgeId(null);
     setDeleteButtonPos(null);
+    setSelectedNodeIds([]); // Сбрасываем выбор узлов
   }, []);
+
+  // Компонент палитры цветов
+  const ColorPalette = ({
+    selectedColor,
+    onColorSelect,
+    title,
+  }: {
+    selectedColor: string;
+    onColorSelect: (color: string) => void;
+    title: string;
+  }) => (
+    <div style={{ marginBottom: 10 }}>
+      <h5 style={{ margin: "0 0 8px 0", fontSize: "12px" }}>{title}</h5>
+      <div
+        style={{
+          display: "grid",
+          gridTemplateColumns: "repeat(6, 1fr)",
+          gap: 4,
+          maxWidth: 200,
+        }}
+      >
+        {COLOR_PALETTE.map((color) => (
+          <button
+            key={color}
+            onClick={() => onColorSelect(color)}
+            style={{
+              width: 24,
+              height: 24,
+              backgroundColor: color,
+              border:
+                selectedColor === color ? "3px solid #000" : "1px solid #ccc",
+              borderRadius: 4,
+              cursor: "pointer",
+              padding: 0,
+            }}
+            title={color}
+          />
+        ))}
+      </div>
+    </div>
+  );
 
   return (
     <div style={{ width: "100vw", height: "100vh" }}>
+      {/* Правая панель - сохранение и загрузка */}
       <div
         style={{
           position: "absolute",
@@ -373,7 +473,7 @@ export default function Flow() {
             onClick={saveDiagram}
             disabled={isLoading}
             style={{
-              background: "#4CAF50",
+              background: "#2196F3",
               color: "white",
               border: "none",
               padding: "6px 12px",
@@ -404,7 +504,7 @@ export default function Flow() {
           <button
             onClick={exportSvg}
             style={{
-              background: "#FF9800",
+              background: "#2196F3",
               color: "white",
               border: "none",
               padding: "6px 12px",
@@ -418,7 +518,7 @@ export default function Flow() {
           <button
             onClick={exportPng}
             style={{
-              background: "#9C27B0",
+              background: "#2196F3",
               color: "white",
               border: "none",
               padding: "6px 12px",
@@ -475,6 +575,7 @@ export default function Flow() {
         )}
       </div>
 
+      {/* Левая панель - управление и палитра цветов */}
       <div
         style={{
           position: "absolute",
@@ -488,8 +589,54 @@ export default function Flow() {
           flexDirection: "column",
           gap: 10,
           minWidth: 300,
+          maxHeight: "80vh",
+          overflowY: "auto",
         }}
       >
+        {/* 🎨 Палитра цветов для узлов - показывается только при выборе узлов */}
+        {selectedNodeIds.length > 0 && !isCreatingMultiSegment && (
+          <div style={{ borderBottom: "1px solid #ccc", paddingBottom: 10 }}>
+            <h4 style={{ margin: "0 0 10px 0" }}>Цвета узлов</h4>
+
+            <ColorPalette
+              selectedColor={selectedNodeColor}
+              onColorSelect={setSelectedNodeColor}
+              title="Цвет контура узлов"
+            />
+
+            <div style={{ marginTop: 8 }}>
+              <div style={{ fontSize: "12px", marginBottom: 4 }}>
+                Выбрано узлов: {selectedNodeIds.length}
+              </div>
+              <button
+                onClick={applyNodeColor}
+                style={{
+                  background: "#4CAF50",
+                  color: "white",
+                  border: "none",
+                  padding: "6px 12px",
+                  borderRadius: "4px",
+                  cursor: "pointer",
+                  fontSize: "12px",
+                }}
+              >
+                Применить цвет
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* 🎨 Палитра цветов для вагонопотоков - показывается только при создании */}
+        {isCreatingMultiSegment && (
+          <div style={{ borderBottom: "1px solid #ccc", paddingBottom: 10 }}>
+            <ColorPalette
+              selectedColor={selectedEdgeColor}
+              onColorSelect={setSelectedEdgeColor}
+              title="Цвет вагонопотока"
+            />
+          </div>
+        )}
+
         {/* Обычные связи */}
         <div style={{ display: "flex", gap: 15, alignItems: "center" }}>
           <div>
@@ -515,7 +662,7 @@ export default function Flow() {
 
         {/* Многосегментные стрелки (вагонопотоки) */}
         <div style={{ borderTop: "1px solid #ccc", paddingTop: 10 }}>
-          <h4 style={{ margin: "0 0 10px 0" }}>Многосегментные стрелки</h4>
+          <h4 style={{ margin: "0 0 10px 0" }}>Вагонопотоки</h4>
 
           {!isCreatingMultiSegment ? (
             <button
@@ -534,7 +681,7 @@ export default function Flow() {
           ) : (
             <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
               <div>
-                <strong>Выбрано блоков: {selectedNodesForArrow.length}</strong>
+                <strong>Выбрано станций: {selectedNodesForArrow.length}</strong>
                 {selectedNodesForArrow.length > 0 && (
                   <div style={{ fontSize: "12px", color: "#666" }}>
                     Последовательность: {selectedNodesForArrow.join(" → ")}
@@ -597,7 +744,7 @@ export default function Flow() {
                         : "not-allowed",
                   }}
                 >
-                  Создать стрелку
+                  Создать поток
                 </button>
                 <button
                   onClick={cancelMultiSegmentCreation}
@@ -615,9 +762,46 @@ export default function Flow() {
               </div>
 
               <div style={{ fontSize: "12px", color: "#666" }}>
-                Кликайте по блокам в нужной последовательности
+                Кликайте по станциям в нужной последовательности
               </div>
             </div>
+          )}
+        </div>
+
+        {/* Инструкция */}
+        <div
+          style={{
+            fontSize: "12px",
+            color: "#666",
+            borderTop: "1px solid #ccc",
+            paddingTop: 10,
+          }}
+        >
+          <strong>Инструкция:</strong>
+          <br />
+          {!isCreatingMultiSegment && selectedNodeIds.length === 0 && (
+            <>
+              • Кликайте по блокам для выбора цвета узлов
+              <br />
+              • Нажмите "Создать вагонопоток" для выбора цвета стрелок
+              <br />
+            </>
+          )}
+          {selectedNodeIds.length > 0 && !isCreatingMultiSegment && (
+            <>
+              • Выберите цвет в палитре
+              <br />
+              • Нажмите "Применить цвет"
+              <br />
+            </>
+          )}
+          {isCreatingMultiSegment && (
+            <>
+              • Выберите цвет вагонопотока в палитре
+              <br />
+              • Кликайте по станциям в нужной последовательности
+              <br />
+            </>
           )}
         </div>
       </div>
@@ -652,9 +836,13 @@ export default function Flow() {
               ...node.style,
               border: selectedNodesForArrow.includes(node.id)
                 ? "3px solid #2196F3"
+                : selectedNodeIds.includes(node.id)
+                ? "3px solid #FFA500"
                 : undefined,
               boxShadow: selectedNodesForArrow.includes(node.id)
                 ? "0 0 10px rgba(33, 150, 243, 0.5)"
+                : selectedNodeIds.includes(node.id)
+                ? "0 0 10px rgba(255, 165, 0, 0.5)"
                 : undefined,
             },
           }))}

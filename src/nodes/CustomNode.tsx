@@ -2,7 +2,7 @@ import { Handle, Position, useReactFlow, type NodeProps } from "@xyflow/react";
 import { useCallback, useMemo, useRef, useEffect, useState } from "react";
 import type { CustomNode } from "./types";
 
-export function CustomNode({ id, data }: NodeProps<CustomNode>) {
+export function CustomNode({ id, data, selected }: NodeProps<CustomNode>) {
   const { setNodes, getEdges } = useReactFlow();
   const allEdges = getEdges();
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -50,38 +50,27 @@ export function CustomNode({ id, data }: NodeProps<CustomNode>) {
   const adjustTextareaSize = useCallback(() => {
     if (textareaRef.current) {
       const textarea = textareaRef.current;
-
-      // Сбрасываем размеры для правильного измерения
       textarea.style.height = "auto";
       textarea.style.width = "auto";
 
-      // Измеряем необходимые размеры
       const scrollHeight = textarea.scrollHeight;
       const scrollWidth = textarea.scrollWidth;
 
-      // Минимальные размеры
       const minWidth = 150;
       const minHeight = 20;
-
-      // Максимальная ширина до увеличения блока
       const maxTextWidth = 200;
 
       let newWidth = Math.max(minWidth, scrollWidth);
       let newHeight = Math.max(minHeight, scrollHeight);
 
-      // Если текст не помещается в максимальную ширину, включаем перенос
       if (newWidth > maxTextWidth) {
         newWidth = maxTextWidth;
-        // Пересчитываем высоту с учетом переноса
         textarea.style.width = `${newWidth}px`;
         newHeight = Math.max(minHeight, textarea.scrollHeight);
       }
 
-      // Применяем размеры
       textarea.style.width = `${newWidth}px`;
       textarea.style.height = `${newHeight}px`;
-
-      // Обновляем состояние для расчета размеров блока
       setTextDimensions({ width: newWidth, height: newHeight });
     }
   }, []);
@@ -97,33 +86,27 @@ export function CustomNode({ id, data }: NodeProps<CustomNode>) {
           return node;
         })
       );
-
-      // Изменяем размер после обновления текста
       setTimeout(adjustTextareaSize, 0);
     },
     [id, setNodes, adjustTextareaSize]
   );
 
-  // Автоматически подстраиваем размер при изменении текста или монтировании
   useEffect(() => {
     adjustTextareaSize();
   }, [data.label, adjustTextareaSize]);
 
-  // Динамические стили для узла с учетом размеров текста
+  // Динамические стили для узла с учетом размеров текста и цвета контура
   const nodeStyle = useMemo(() => {
     const basePadding = 15;
     const totalPadding = basePadding + extraSize;
 
-    // Базовые размеры
     const baseWidth = 150;
     const baseHeight = 60;
 
-    // Размеры с учетом текста и отступов
     const nodeWidth = Math.max(
       baseWidth + extraSize * 2,
       textDimensions.width + totalPadding * 2
     );
-
     const nodeHeight = Math.max(
       baseHeight + extraSize,
       textDimensions.height + totalPadding * 2
@@ -138,8 +121,14 @@ export function CustomNode({ id, data }: NodeProps<CustomNode>) {
       display: "flex",
       alignItems: "center",
       justifyContent: "center",
+      border: `2px solid ${data.borderColor || "#555"}`, // Применяем пользовательский цвет
+      borderRadius: "8px",
+      background: "white",
+      boxShadow: selected
+        ? `0 0 0 2px ${data.borderColor || "#555"}`
+        : "0 2px 4px rgba(0,0,0,0.1)",
     };
-  }, [extraSize, textDimensions]);
+  }, [extraSize, textDimensions, data.borderColor, selected]);
 
   return (
     <div className="custom-node" style={nodeStyle}>

@@ -18,7 +18,7 @@
 .custom-node-input {
   width: 100%;
   border: none !important;
-  background-color: #f0f0f0 !important;
+  background-color: transparent !important;
   padding: 8px;
   text-align: center;
   border-radius: 5px;

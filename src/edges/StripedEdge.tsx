@@ -1,4 +1,9 @@
-import { BaseEdge, getSmoothStepPath, type EdgeProps } from "@xyflow/react";
+import {
+  BaseEdge,
+  getSmoothStepPath,
+  getStraightPath,
+  type EdgeProps,
+} from "@xyflow/react";
 
 export default function StripedEdge({
   sourceX,
@@ -8,16 +13,32 @@ export default function StripedEdge({
   sourcePosition,
   targetPosition,
 }: EdgeProps) {
-  // Используем borderRadius: 0 для создания "ступенчатого" пути
-  const [edgePath] = getSmoothStepPath({
-    sourceX,
-    sourceY,
-    sourcePosition,
-    targetX,
-    targetY,
-    targetPosition,
-    borderRadius: 0,
-  });
+  // Пороговое значение для начала искривления (в пикселях)
+  const CURVE_THRESHOLD = 100;
+
+  // Вычисляем расстояние между точками
+  const distance = Math.sqrt(
+    Math.pow(targetX - sourceX, 2) + Math.pow(targetY - sourceY, 2)
+  );
+
+  // Выбираем тип пути в зависимости от расстояния
+  const [edgePath] =
+    distance > CURVE_THRESHOLD
+      ? getSmoothStepPath({
+          sourceX,
+          sourceY,
+          sourcePosition,
+          targetX,
+          targetY,
+          targetPosition,
+          borderRadius: 0,
+        })
+      : getStraightPath({
+          sourceX,
+          sourceY,
+          targetX,
+          targetY,
+        });
 
   const edgeStyle = {
     strokeWidth: 20, // Ширина полосы
@@ -43,7 +64,6 @@ export default function StripedEdge({
         style={{
           ...edgeStyle,
           stroke: "black",
-          // 100px черного, 100px прозрачного (виден белый фон)
           strokeDasharray: "100 100",
         }}
       />

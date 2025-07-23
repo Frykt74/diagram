@@ -12,6 +12,7 @@ export type PositionLoggerNode = Node<
 
 export type CustomNodeData = {
   label: string;
+  borderColor?: string;
 };
 
 export type CustomNode = Node<CustomNodeData, "custom">;
