@@ -13,6 +13,7 @@ import {
 } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
 import { toPng, toSvg } from "html-to-image";
+import { jsPDF } from "jspdf";
 
 import { nodeTypes, initialNodes } from "../nodes";
 import { edgeTypes, initialEdges } from "../edges";
@@ -231,6 +232,36 @@ export default function Flow() {
       } catch (error) {
         console.error("Ошибка экспорта PNG:", error);
         alert("Ошибка при экспорте в PNG");
+      }
+    }
+  }, [diagramName]);
+
+  // Экспорт в PDF
+  const exportPdf = useCallback(async () => {
+    if (reactFlowWrapper.current) {
+      try {
+        const pngData = await toPng(reactFlowWrapper.current, {
+          filter: (node) => !node.classList?.contains("react-flow__controls"),
+          backgroundColor: "#ffffff",
+          pixelRatio: 2,
+        });
+
+        // Использовать размеры контейнера диаграммы
+        const containerRect = reactFlowWrapper.current.getBoundingClientRect();
+        const width = containerRect.width;
+        const height = containerRect.height;
+
+        const pdf = new jsPDF({
+          orientation: width > height ? "landscape" : "portrait",
+          unit: "px",
+          format: [width, height],
+        });
+
+        pdf.addImage(pngData, "PNG", 0, 0, width, height);
+        pdf.save(`${diagramName}.pdf`);
+      } catch (error) {
+        console.error("Ошибка экспорта PDF:", error);
+        alert("Ошибка при экспорте в PDF");
       }
     }
   }, [diagramName]);
@@ -527,6 +558,19 @@ export default function Flow() {
             }}
           >
             Экспорт PNG
+          </button>
+          <button
+            onClick={exportPdf}
+            style={{
+              background: "#2196F3",
+              color: "white",
+              border: "none",
+              padding: "6px 12px",
+              borderRadius: "4px",
+              cursor: "pointer",
+            }}
+          >
+            Экспорт PDF
           </button>
         </div>
 
