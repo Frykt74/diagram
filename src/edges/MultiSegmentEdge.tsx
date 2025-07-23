@@ -99,6 +99,7 @@ function getPortPositions(
   };
 }
 
+// ИСПРАВЛЕННАЯ ФУНКЦИЯ: Общий счетчик для связей в обоих направлениях
 function getSegmentIndex(
   allEdges: Edge[],
   currentEdgeId: string,
@@ -111,27 +112,34 @@ function getSegmentIndex(
       return false;
     }
 
-    const edgeData = edge.data as MultiSegmentEdgeData | undefined; // Проверяем наличие и тип nodeSequence
+    const edgeData = edge.data as MultiSegmentEdgeData | undefined;
 
     if (!edgeData?.nodeSequence || !Array.isArray(edgeData.nodeSequence)) {
       return false;
     }
 
-    const seq = edgeData.nodeSequence; // Ищем прямое вхождение сегмента в последовательность узлов
+    const seq = edgeData.nodeSequence;
 
+    // Ищем сегмент в ЛЮБОМ направлении между этими двумя узлами
     for (let i = 0; i < seq.length - 1; i++) {
-      if (seq[i] === sourceNodeId && seq[i + 1] === targetNodeId) {
+      // Проверяем как прямое направление (A->B), так и обратное (B->A)
+      if (
+        (seq[i] === sourceNodeId && seq[i + 1] === targetNodeId) ||
+        (seq[i] === targetNodeId && seq[i + 1] === sourceNodeId)
+      ) {
         return true;
       }
     }
     return false;
-  }); // Сортируем для стабильного порядка
+  });
 
+  // Сортируем для стабильного порядка
   competingEdges.sort((a, b) => a.id.localeCompare(b.id));
 
   return competingEdges.findIndex((edge) => edge.id === currentEdgeId);
 }
 
+// Логика отступов остается БЕЗ ИЗМЕНЕНИЙ
 function calcOffsetPx(idx: number, baseShift: number = 30) {
   if (idx === -1) return 0;
   const side = idx % 2 === 0 ? 1 : -1;
@@ -167,7 +175,7 @@ function getOrthogonalPathWithOffsets(
   const src = getPointWithOffset(sourcePoint, sourceHandle, sourceOffset);
   const tgt = getPointWithOffset(targetPoint, targetHandle, targetOffset);
 
-  const isHorizontal = sourceHandle === "left" || sourceHandle === "right"; // Добавляем отступ для перпендикулярной части путем сдвига средней точки // Используем sourceOffset как основу для сдвига (поскольку sourceOffset === targetOffset)
+  const isHorizontal = sourceHandle === "left" || sourceHandle === "right";
 
   const offset = sourceOffset;
 
