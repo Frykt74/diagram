@@ -7,7 +7,7 @@
 - Интерактивный редактор: создание, перемещение и соединение станций на холсте.
 - Кастомные элементы: станции, вагонопотоки, однопутные и двухпутная линии автоматической блокировки.
 - Сохранение в базу данных: возможность сохранять и загружать схемы из базы данных PostgreSQL.
-- Экспорт: выгрузка готовых схем в SVG.
+- Экспорт: выгрузка готовых схем в SVG/PDF/PNG.
 - RESTful API: бэкенд на C# для управления данными.
 
 ## Предварительные требования
@@ -36,6 +36,23 @@ cd FlowchartApi
 docker-compose up -d
 ```
 
+- Настройте строку подключения: добавьте в файл `FlowchartApi/appsettings.json` строку подключения. Со стандартым `docker-compose.yml` конфиг будет следующим:
+
+```json
+{
+  "Logging": {
+    "LogLevel": {
+      "Default": "Information",
+      "Microsoft.AspNetCore": "Warning"
+    }
+  },
+  "AllowedHosts": "*",
+  "ConnectionStrings": {
+    "DefaultConnection": "Host=localhost;Port=5432;Database=flowchart_db;Username=flowchart_user;Password=mysecretpassword"
+  }
+}
+```
+
 - Примените миграции базы данных: эта команда создаст таблицы в вашей базе данных.
 
 ```bash
@@ -48,7 +65,7 @@ dotnet ef database update
 dotnet run
 ```
 
-3. Запустите фронтенд
+1. Запустите фронтенд
 
 - Перейдите в корневую директорию проекта
 - Установите зависимости:
