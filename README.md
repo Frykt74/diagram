@@ -1,54 +1,66 @@
-![](https://github.com/xyflow/web/blob/main/assets/codesandbox-header-ts.png?raw=true)
+# Инструмент визуализации вагонопотоков
 
-# React Flow starter (Vite + TS)
+Данный проект представляет собой веб-приложение для создания, редактирования и сохранения схем вагонопотоков. Фронтенд построен на React с использованием библиотеки React Flow, а бэкенд — на ASP.NET Core Web API с сохранением данных в PostgreSQL.
 
-We've put together this template to serve as a starting point for folks
-interested in React Flow. You can use this both as a base for your own React
-Flow applications, or for small experiments or bug reports.
+## Основные возможности
 
-**TypeScript not your thing?** We also have a vanilla JavaScript starter template,
-just for you!
+- Интерактивный редактор: создание, перемещение и соединение станций на холсте.
+- Кастомные элементы: станции, вагонопотоки, однопутные и двухпутная линии автоматической блокировки.
+- Сохранение в базу данных: возможность сохранять и загружать схемы из базы данных PostgreSQL.
+- Экспорт: выгрузка готовых схем в SVG.
+- RESTful API: бэкенд на C# для управления данными.
 
-## Getting up and running
+## Предварительные требования
 
-You can get this template without forking/cloning the repo using `degit`:
+Перед запуском убедитесь, что у вас установлены:
 
-```bash
-npx degit xyflow/vite-react-flow-template your-app-name
-```
-
-The template contains mostly the minimum dependencies to get up and running, but
-also includes eslint and some additional rules to help you write React code that
-is less likely to run into issues:
+- Node.js (версия 18.x или выше)
+- .NET 8 SDK
+- Docker и Docker Compose
+- dotnet-ef tool:
 
 ```bash
-npm install # or `pnpm install` or `yarn install`
+dotnet tool install --global dotnet-ef
 ```
 
-Vite is a great development server and build tool that we recommend our users to
-use. You can start a development server with:
+## Установка и запуск
+
+1. Склонируйте репозиторий
+
+2. Запустите бэкенд
+
+- Запустите базу данных PostgreSQL: в директории FlowchartApi находится файл docker-compose.yml. Выполните команду для запуска контейнера:
+
+```bash
+cd FlowchartApi
+docker-compose up -d
+```
+
+- Примените миграции базы данных: эта команда создаст таблицы в вашей базе данных.
+
+```bash
+dotnet ef database update
+```
+
+- Запустите сервер:
+
+```bash
+dotnet run
+```
+
+3. Запустите фронтенд
+
+- Перейдите в корневую директорию проекта
+- Установите зависимости:
+
+```bash
+npm install
+```
+
+- Запустите приложение:
 
 ```bash
 npm run dev
 ```
 
-While the development server is running, changes you make to the code will be
-automatically reflected in the browser!
-
-## Things to try:
-
-- Create a new custom node inside `src/nodes/` (don't forget to export it from `src/nodes/index.ts`).
-- Change how things look by [overriding some of the built-in classes](https://reactflow.dev/learn/customization/theming#overriding-built-in-classes).
-- Add a layouting library to [position your nodes automatically](https://reactflow.dev/learn/layouting/layouting)
-
-## Resources
-
-Links:
-
-- [React Flow - Docs](https://reactflow.dev)
-- [React Flow - Discord](https://discord.com/invite/Bqt6xrs)
-
-Learn:
-
-- [React Flow – Custom Nodes](https://reactflow.dev/learn/customization/custom-nodes)
-- [React Flow – Layouting](https://reactflow.dev/learn/layouting/layouting)
+Приложение будет доступно по адресу `http://localhost:5173`.
