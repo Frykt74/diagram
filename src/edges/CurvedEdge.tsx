@@ -11,7 +11,6 @@ export default function CurvedEdge({
   style,
   markerEnd,
 }: EdgeProps) {
-  // getSmoothStepPath вернёт SVG-путь и координаты для метки
   const [d] = getSmoothStepPath({
     sourceX,
     sourceY,
@@ -22,5 +21,13 @@ export default function CurvedEdge({
     borderRadius: 15,
   });
 
-  return <BaseEdge id={id} path={d} style={style} markerEnd={markerEnd} />;
+  // Явные стили для экспорта
+  const edgeStyle = {
+    stroke: style?.stroke || "#666",
+    strokeWidth: style?.strokeWidth || 2,
+    fill: "none",
+    ...style,
+  };
+
+  return <BaseEdge id={id} path={d} style={edgeStyle} markerEnd={markerEnd} />;
 }
